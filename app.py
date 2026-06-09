@@ -4,8 +4,10 @@ import re
 from nltk.tokenize import word_tokenize
 from nltk.stem import WordNetLemmatizer
 from nltk.corpus import stopwords
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 
-# Load model files
+# Load trained model files
 model = pickle.load(open("model.pkl", "rb"))
 vect = pickle.load(open("vect.pkl", "rb"))
 le = pickle.load(open("label_encoder.pkl", "rb"))
@@ -23,33 +25,30 @@ def cleaned_text(text):
     text = re.sub(r'\s+', ' ', text)
 
     words = word_tokenize(text)
-    words = [w for w in words if w not in stop_words]
-    words = [lem.lemmatize(w) for w in words]
+    words = [word for word in words if word not in stop_words]
+    words = [lem.lemmatize(word) for word in words]
 
     return " ".join(words)
 
-# ATS Score Function
+# ATS Score using TF-IDF + Cosine Similarity
 def calculate_ats_score(resume_text, job_description):
 
     resume_text = cleaned_text(resume_text)
     job_description = cleaned_text(job_description)
 
-    resume_words = set(resume_text.split())
-    job_words = set(job_description.split())
+    documents = [resume_text, job_description]
 
-    matched_count = 0
+    tfidf = TfidfVectorizer()
+    tfidf_matrix = tfidf.fit_transform(documents)
 
-    for word in job_words:
-        if word in resume_words:
-            matched_count += 1
+    similarity = cosine_similarity(
+        tfidf_matrix[0:1],
+        tfidf_matrix[1:2]
+    )
 
-    if len(job_words) == 0:
-        return 0
-
-    score = int((matched_count / len(job_words)) * 100)
+    score = int(similarity[0][0] * 100)
 
     return score
-
 
 # Streamlit UI
 st.title("AI-Based Resume Screening and Classification System")
@@ -60,7 +59,6 @@ job_description = st.text_area("Paste Job Description Here")
 
 if st.button("Predict Job Category & Analyze Resume"):
 
-    # Validation
     if resume.strip() == "":
         st.warning("Please paste a resume.")
         st.stop()
@@ -81,7 +79,7 @@ if st.button("Predict Job Category & Analyze Resume"):
     st.subheader("Predicted Job Category")
     st.success(category[0])
 
-    # ATS Analysis
+    # ATS Score
     ats_score = calculate_ats_score(
         resume,
         job_description
@@ -90,10 +88,10 @@ if st.button("Predict Job Category & Analyze Resume"):
     st.subheader("ATS Compatibility Analysis")
     st.write(f"ATS Score: {ats_score}%")
 
-    if ats_score >= 80:
+    if ats_score >= 70:
         st.success("ATS Friendly ✅")
 
-    elif ats_score >= 50:
+    elif ats_score >= 40:
         st.warning("Moderately ATS Friendly ⚠️")
 
     else:
