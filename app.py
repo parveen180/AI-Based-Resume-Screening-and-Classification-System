@@ -36,14 +36,13 @@ def calculate_ats_score(resume_text, job_description):
     resume_text = cleaned_text(resume_text)
     job_description = cleaned_text(job_description)
 
-    documents = [resume_text, job_description]
+   
 
-    tfidf = TfidfVectorizer()
-    tfidf_matrix = tfidf.fit_transform(documents)
+    vectors = vect.transform([resume_text, job_description])
 
     similarity = cosine_similarity(
-        tfidf_matrix[0:1],
-        tfidf_matrix[1:2]
+        vectors[0:1],
+        vectors[1:2]
     )
 
     score = int(similarity[0][0] * 100)
