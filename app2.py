@@ -5,14 +5,15 @@ from nltk.tokenize import word_tokenize
 from nltk.stem import WordNetLemmatizer
 from nltk.corpus import stopwords
 
-# Load model files
+# Load trained files
 model = pickle.load(open("model.pkl", "rb"))
 vect = pickle.load(open("vect.pkl", "rb"))
 le = pickle.load(open("label_encoder.pkl", "rb"))
 
-# NLP setup
+# NLTK setup
 lem = WordNetLemmatizer()
 stop_words = stopwords.words("english")
+
 
 # Text Cleaning Function
 def cleaned_text(text):
@@ -28,31 +29,40 @@ def cleaned_text(text):
 
     return " ".join(words)
 
+
 # ATS Score Function
-def calculate_ats_score(resume_text, job_description):
+def calculate_ats_score(resume_text):
 
-    resume_text = cleaned_text(resume_text)
-    job_description = cleaned_text(job_description)
+    score = 0
 
-    resume_words = set(resume_text.split())
-    job_words = set(job_description.split())
+    # Email
+    if re.search(r'[\w\.-]+@[\w\.-]+\.\w+', resume_text):
+        score += 20
 
-    matched_count = 0
+    # Phone
+    if re.search(r'\b\d{10}\b', resume_text):
+        score += 20
 
-    for word in job_words:
-        if word in resume_words:
-            matched_count += 1
+    # Education
+    if any(word in resume_text.lower() for word in
+           ['bachelor', 'master', 'degree', 'university', 'college']):
+        score += 20
 
-    if len(job_words) == 0:
-        return 0
+    # Experience
+    if any(word in resume_text.lower() for word in
+           ['experience', 'worked', 'project', 'internship']):
+        score += 20
 
-    score = int((matched_count / len(job_words)) * 100)
+    # Skills
+    if any(word in resume_text.lower() for word in
+           ['java', 'python', 'sql', 'spring', 'machine learning']):
+        score += 20
 
     return score
 
 
 # Streamlit UI
-st.title("AI-Based Resume Screening and Classification System")
+st.title("AI Resume Screening and ATS Evaluation System")
 
 resume = st.text_area("Paste Resume Here")
 
@@ -60,7 +70,6 @@ job_description = st.text_area("Paste Job Description Here")
 
 if st.button("Predict Job Category & Analyze Resume"):
 
-    # Validation
     if resume.strip() == "":
         st.warning("Please paste a resume.")
         st.stop()
@@ -69,7 +78,6 @@ if st.button("Predict Job Category & Analyze Resume"):
         st.warning("Please paste a job description.")
         st.stop()
 
-    # Resume Classification
     clean_resume = cleaned_text(resume)
 
     vector = vect.transform([clean_resume])
@@ -81,20 +89,15 @@ if st.button("Predict Job Category & Analyze Resume"):
     st.subheader("Predicted Job Category")
     st.success(category[0])
 
-    # ATS Analysis
-    ats_score = calculate_ats_score(
-        resume,
-        job_description
-    )
+    # ATS Score
+    ats_score = calculate_ats_score(resume)
 
     st.subheader("ATS Compatibility Analysis")
-    st.write(f"ATS Score: {ats_score}%")
+    st.write(f"{ats_score}%")
+
+    ats_score = calculate_ats_score(resume)
 
     if ats_score >= 80:
-        st.success("ATS Friendly ✅")
-
-    elif ats_score >= 50:
-        st.warning("Moderately ATS Friendly ⚠️")
-
+     st.success("ATS Friendly ✅")
     else:
-        st.error("Not ATS Friendly ❌")
+     st.error("Needs Improvement ❌")
